@@ -23,7 +23,8 @@ FROM prescriber
 LIMIT 10;
 
 SELECT *
-FROM perscription
+FROM prescription
+WHERE drug_name = 'SPIRIVA'
 LIMIT 10;
 
 SELECT *
@@ -40,7 +41,7 @@ FROM prescriber AS p1
 INNER JOIN prescription AS p2 
 USING (npi)
 ORDER BY p2.total_claim_count DESC
-LIMIT 1;
+LIMIT 10;
 
 -- ANSWER: NPI: 1912011792, CLAIM COUNT: 4538
     
@@ -60,16 +61,37 @@ LIMIT 1;
 -- 2. 
 --     a. Which specialty had the most total number of claims (totaled over all drugs)?
 
+WITH X AS ( --CTE --COMMON TABLE EXPRESSION - CREATING YOUR OWN TABLE 
 SELECT
 	p1.specialty_description AS specialty,
 	SUM(p2.total_claim_count) AS total_claim_count
 FROM prescriber AS p1
 INNER JOIN prescription AS p2 
 USING (npi)
-GROUP BY p1.specialty_description;
-	
+GROUP BY p1.specialty_description)
+SELECT * 
+FROM X
+ORDER BY total_claim_count DESC
+LIMIT 1;
+
+-- ANSWER: FAMILY PRACTICE 
 
 --     b. Which specialty had the most total number of claims for opioids?
+
+SELECT
+	p1.specialty_description AS specialty,
+	SUM(p2.total_claim_count) AS opioid_claim
+FROM prescriber AS p1
+INNER JOIN prescription AS p2 
+USING (npi)
+INNER JOIN drug AS d
+USING (drug_name)
+WHERE opioid_drug_flag = 'Y'
+GROUP BY p1.specialty_description
+ORDER BY opioid_claim DESC
+LIMIT 1;
+
+--ANSWER: Nurse Practitioner
 
 --     c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have no associated prescriptions in the prescription table?
 
@@ -77,6 +99,14 @@ GROUP BY p1.specialty_description;
 
 -- 3. 
 --     a. Which drug (generic_name) had the highest total drug cost?
+
+SELECT
+	d.generic_name, 
+	p.total_drug_cost AS total_drug_cost
+FROM prescription AS p
+INNER JOIN drug AS d
+USING (drug_name)
+ORDER BY total_drug_cost DESC
 
 --     b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.**
 
