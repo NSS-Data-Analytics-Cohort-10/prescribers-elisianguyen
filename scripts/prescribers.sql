@@ -22,10 +22,9 @@ SELECT *
 FROM prescriber
 LIMIT 10;
 
-SELECT *
+SELECT drug_name, total_day_supply, total_30_day_fill_count
 FROM prescription
-WHERE drug_name = 'SPIRIVA'
-LIMIT 10;
+WHERE drug_name = 'CEPHALEXIN'
 
 SELECT *
 FROM zip_flips
@@ -61,7 +60,7 @@ LIMIT 1;
 -- 2. 
 --     a. Which specialty had the most total number of claims (totaled over all drugs)?
 
-WITH X AS ( --CTE --COMMON TABLE EXPRESSION - CREATING YOUR OWN TABLE 
+WITH X AS ( 
 SELECT
 	p1.specialty_description AS specialty,
 	SUM(p2.total_claim_count) AS total_claim_count
@@ -102,25 +101,87 @@ LIMIT 1;
 
 SELECT
 	d.generic_name, 
-	p.total_drug_cost AS total_drug_cost
+	CAST(SUM(p.total_drug_cost) AS money) AS total_drug_cost
 FROM prescription AS p
 INNER JOIN drug AS d
 USING (drug_name)
-ORDER BY total_drug_cost DESC
+GROUP BY d.generic_name
+ORDER BY total_drug_cost DESC;
+
+--ANSWER: INSULIN GLARGINE,HUM.REC.ANLOG $104,264,066.35
 
 --     b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.**
+
+SELECT 
+	generic_name,
+    CAST(ROUND(CASE 
+		WHEN total_day_supply > 1 THEN (total_drug_cost / total_day_supply) 
+		ELSE 0
+    	END, 2) AS money) AS per_day_cost
+FROM prescription AS p
+INNER JOIN drug AS d
+USING (drug_name)
+ORDER BY per_day_cost DESC
+LIMIT 10;
+
+-- ANSWER: "IMMUN GLOB G(IGG)/GLY/IGA OV50"	$7,141.11
 
 -- 4. 
 --     a. For each drug in the drug table, return the drug name and then a column named 'drug_type' which says 'opioid' for drugs which have opioid_drug_flag = 'Y', says 'antibiotic' for those drugs which have antibiotic_drug_flag = 'Y', and says 'neither' for all other drugs.
 
+SELECT 
+	drug_name,
+	CASE 
+		WHEN opioid_drug_flag = 'Y' THEN 'opioid'
+		WHEN antibiotic_drug_flag = 'Y' THEN 'antibiotic'
+		ELSE 'neither' 
+		END AS drug_type
+FROM drug;
+
 --     b. Building off of the query you wrote for part a, determine whether more was spent (total_drug_cost) on opioids or on antibiotics. Hint: Format the total costs as MONEY for easier comparision.
+
+SELECT 
+	CASE 
+		WHEN d.opioid_drug_flag = 'Y' THEN 'opioid'
+		WHEN d.antibiotic_drug_flag = 'Y' THEN 'antibiotic'
+		ELSE 'neither' 
+		END AS drug_type,
+	CAST(SUM(p.total_drug_cost) AS money) AS total_spent
+FROM prescription AS p
+LEFT JOIN drug AS d
+USING (drug_name)
+GROUP BY drug_type
+ORDER BY drug_type DESC;
 
 -- 5. 
 --     a. How many CBSAs are in Tennessee? **Warning:** The cbsa table contains information for all states, not just Tennessee.
 
+WITH x AS (
+SELECT RIGHT(cbsaname, 2) AS name
+FROM cbsa )
+	SELECT COUNT(name) AS total_cbsas
+	FROM x
+	WHERE name = 'TN';
+
+--ANSWER: 33
+
 --     b. Which cbsa has the largest combined population? Which has the smallest? Report the CBSA name and total population.
 
+SELECT 
+	cbsaname AS cbsa_name,
+	SUM(p.population) AS total_population
+FROM cbsa AS c
+INNER JOIN population AS p
+USING (fipscounty)
+GROUP BY c.cbsa, cbsaname
+ORDER BY total_population DESC;
+
+--ANSWER 1: LARGEST - "Nashville-Davidson--Murfreesboro--Franklin, TN"	1830410
+--ANSWER 2: SMALLEST - "Morristown, TN"	116352
+
 --     c. What is the largest (in terms of population) county which is not included in a CBSA? Report the county name and population.
+
+
 
 -- 6. 
 --     a. Find all rows in the prescription table where total_claims is at least 3000. Report the drug_name and the total_claim_count.
