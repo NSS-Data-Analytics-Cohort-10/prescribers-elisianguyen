@@ -1,34 +1,3 @@
-SELECT *
-FROM cbsa
-LIMIT 10;
-
-SELECT *
-FROM drug
-LIMIT 10;
-
-SELECT *
-FROM fips_county
-LIMIT 10;
-
-SELECT *
-FROM overdose_deaths
-LIMIT 10;
-
-SELECT *
-FROM population
-LIMIT 10;
-
-SELECT *
-FROM prescriber
-LIMIT 10;
-
-SELECT drug_name, total_day_supply, total_30_day_fill_count
-FROM prescription
-WHERE drug_name = 'CEPHALEXIN'
-
-SELECT *
-FROM zip_flips
-LIMIT 10;
 -- 1. 
 --     a. Which prescriber had the highest total number of claims (totaled over all drugs)? Report the npi and the total number of claims.
 
@@ -97,10 +66,58 @@ LIMIT 1;
 --ANSWER: Nurse Practitioner
 
 --     c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have no associated prescriptions in the prescription table?
+WITH x AS( --WITH CTE
+SELECT
+	specialty_description, 
+	SUM(total_claim_count) AS total_claims
+FROM prescription
+FULL JOIN prescriber
+USING (npi)
+GROUP BY specialty_description
+ORDER BY specialty_description)
+SELECT *
+FROM x 
+WHERE total_claims IS NULL;
 
+SELECT --WITHOUT CTE AND HAVING
+	specialty_description, 
+	SUM(total_claim_count) AS total_claims
+FROM prescription
+FULL JOIN prescriber
+USING (npi)
+GROUP BY specialty_description
+HAVING SUM(total_claim_count) IS NULL
+ORDER BY specialty_description
 
+--ANSWER: 15 specialty
 
 --     d. **Difficult Bonus:** *Do not attempt until you have solved all other problems!* For each specialty, report the percentage of total claims by that specialty which are for opioids. Which specialties have a high percentage of opioids?
+
+
+SELECT--still working through
+	specialty_description, 
+	SUM(total_claim_count) AS total_claims,
+	COUNT(opioid_drug_flag = 'Y') AS opioid_count,
+	COUNT(opioid_drug_flag = 'Y')/SUM(total_claim_count)*100 AS opioid_percentage
+FROM prescriber
+FULL JOIN prescription
+USING (npi)
+LEFT JOIN drug
+USING (drug_name)
+WHERE total_claim_count IS NOT NULL 
+GROUP BY specialty_description
+ORDER BY total_claims DESC;
+
+SELECT --ignore
+	opioid_drug_flag
+FROM prescriber
+FULL JOIN prescription
+USING (npi)
+LEFT JOIN drug
+USING (drug_name)
+WHERE opioid_drug_flag = 'Y'
+AND specialty_description = 'Family Practice'
+
 
 -- 3. 
 --     a. Which drug (generic_name) had the highest total drug cost?
